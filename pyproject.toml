@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "federated-networks-vs-trees"
+version = "0.1.0"
+description = "A federated benchmark investigating federated trees vs. neural networks."
+authors = ["WilliamLindskog <williamlindskog@protonmail.com>"]
+license = "MIT"
+readme = "README.md"
+packages = [{include = "federated_networks_vs"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
