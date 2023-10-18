@@ -1,3 +1,6 @@
 [submodule "data"]
 	path = data
 	url = https://github.com/TalwalkarLab/leaf.git
+[submodule "data/leaf"]
+	path = data/leaf
+	url = https://github.com/TalwalkarLab/leaf.git
