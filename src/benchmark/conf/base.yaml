@@ -1,0 +1,6 @@
+num_clients: 4
+
+dataset:
+  iid: True
+  name: smoking
+  num_clients: ${num_clients}
