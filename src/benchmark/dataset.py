@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from typing import Tuple, Any, Union
+from typing import Tuple, Any, Union, Optional
 from src.benchmark.dataset_preparation import dataset_prepare
 
 WORKING_DIR = Path(__file__).resolve().parent
@@ -32,7 +32,7 @@ def get_dataset_path(name: str) -> Tuple[Path, bool]:
     else:
         raise NotImplementedError(f'Unknown dataset {name}')
 
-def get_dataset(name: str) -> Any:
+def get_dataset(name: str) -> Tuple[Any, bool]:
     """Get dataset.
     
     Parameters
@@ -42,31 +42,29 @@ def get_dataset(name: str) -> Any:
     
     Returns
     -------
-    Any
-        Dataset.
+    Tuple[Any, bool]
+        Tuple of dataset and is dataset .csv?
     """
+    csv = False
     if name == 'smoking':
-        return pd.read_csv(FL_BENCH_ROOT / 'data' / 'smoking' / 'smoking.csv')
+        data = pd.read_csv(FL_BENCH_ROOT / 'data' / 'smoking' / 'smoking.csv')
+        csv = True
     else:
         raise NotImplementedError(f'Unknown dataset {name}')
 
+    return data, csv
 
-def dataset_main(cfg: DictConfig) -> None:
+def dataset_main(cfg: DictConfig) -> Optional[DictConfig]:
     """Main function for dataset."""
     # Remove files in tmp folder
     tmp_path = WORKING_DIR / 'tmp'
     for tmp_file in tmp_path.glob('*'):
         tmp_file.unlink()
-
-    # Get dataset name
-    name = cfg.name.lower()
-
-    # Get dataset path
-    csv = False
-    data_path, csv = get_dataset_path(name)
     
     # Get dataset
-    data = get_dataset(name)
+    name = cfg.name.lower()
+    data, csv = get_dataset(name)
+    # print length of unique values for each column
     
     # Prepare dataset
     data = dataset_prepare(name, data)
@@ -77,6 +75,8 @@ def dataset_main(cfg: DictConfig) -> None:
         # randomly split dataset into num_clients parts
         if csv:
             data = data.sample(frac=1).reset_index(drop=True)
+            print(data["dental caries"].value_counts())
+            quit()
             # split dataset into num_clients parts
             data_split = [data.iloc[i::num_clients, :].reset_index(drop=True) for i in range(num_clients)]
         else:
@@ -85,8 +85,18 @@ def dataset_main(cfg: DictConfig) -> None:
         raise NotImplementedError(f'Not implemented for non-iid dataset {name}')
     
     # Save dataset for each client
-    for i, data in enumerate(data_split):
-        data.to_csv(tmp_path / f'data_{i}.csv', index=False)
+    if cfg.federated:
+        for i, data in enumerate(data_split):
+            data.to_csv(tmp_path / f'data_{i}.csv', index=False)
+    else:
+        data.to_csv(tmp_path / 'data.csv', index=False)
+
+    # Set input dimension
+    cfg.num_features = data.shape[1] - 1
+
+    return cfg
+
+
             
         
 

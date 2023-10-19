@@ -1,6 +1,24 @@
 num_clients: 4
+task: None
+federated: False 
+batch_size: 32
 
 dataset:
+  federated: ${federated}
   iid: True
   name: smoking
   num_clients: ${num_clients}
+  num_features: None
+  num_classes: None
+  test_frac: 0.2
+  batch_size: ${batch_size}
+
+model: 
+  _target_: None
+  name: mlp
+  num_layers: 5 
+  hidden_dim: [64, 128, 96, 64, 32]
+  input_dim: ${dataset.num_features}
+  output_dim: ${dataset.num_classes}
+  dropout: True
+  dropout_prob: 0.1

@@ -72,11 +72,10 @@ def dataset_prepare(name: str, dataset: Union[DataFrame, Any]) -> Any:
 
 def smoking_processing(dataset: DataFrame) -> None:
     """Processing smoking dataset."""
-    print("Features: ", dataset.columns)
-    print("Type of features: ", dataset.dtypes)
     
-    # Drop ID column
+    # Drop ID and oral column
     dataset.drop('ID', axis=1, inplace=True)
+    dataset.drop('oral', axis=1, inplace=True)
 
     # Encode categorical features
     for col in dataset.columns:
