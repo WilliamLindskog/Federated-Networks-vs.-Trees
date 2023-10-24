@@ -44,7 +44,9 @@ class MLP(Model):
 
     def train(self, train_loader = None, **kwargs):
         """Train the model."""
-        self.trainloader = DataLoader
+        if train_loader is None:
+            raise ValueError("train_loader is None.")
+        
     
     def predict(self, test_data, **kwargs):
         """Predict the test data."""
