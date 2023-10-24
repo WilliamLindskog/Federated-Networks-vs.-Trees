@@ -41,8 +41,10 @@ def main(cfg: DictConfig):
     # 4. Train model
     if cfg.federated == False:
         train_loader, test_loader = get_centralized_dataset(cfg.dataset)
-        model.train()
-
+        model.train(train_loader)
+        model.evaluate(test_loader)
+    else: 
+        pass
 
 if __name__ == '__main__':
     main()

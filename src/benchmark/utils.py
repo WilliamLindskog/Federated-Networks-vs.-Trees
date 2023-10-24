@@ -32,7 +32,7 @@ def _task_assertions(cfg: DictConfig) -> None:
         Configuration file.
     """
     if cfg.dataset.name == 'smoking':
-        assert cfg.task == 'classification', \
+        assert cfg.task == 'binary', \
             "Task must be classification for smoking dataset."
         assert cfg.dataset.num_classes == 2, \
             "Number of classes must be 2 for smoking dataset."
@@ -77,8 +77,8 @@ def set_dataset_task(name: str, cfg: DictConfig) -> DictConfig:
     """
 
     if name == 'smoking':
-        cfg.task = 'classification'
         cfg.dataset.num_classes = 2
+        cfg.task = 'binary'
     else:
         raise NotImplementedError(f"Dataset {name} not implemented.")
     return cfg
@@ -128,12 +128,12 @@ def get_centralized_dataset(cfg: DictConfig) -> Any:
     Any
         Dataset.
     """
-    name = cfg.name
+    name, device = cfg.name, cfg.device
     csv = True if name in ['smoking'] else False
 
     columns_to_scale = SMOKING_COLUMNS_TO_SCALE
 
-    tmp_path = "./src/benchmark/tmp/"
+    tmp_path = "./tmp"
     if csv:
         data = pd.read_csv(f'{tmp_path}/data.csv')
         X = data.drop(columns=[get_target_name(name)])
@@ -147,8 +147,8 @@ def get_centralized_dataset(cfg: DictConfig) -> Any:
         scaler = StandardScaler()
         X_train[columns_to_scale] = scaler.fit_transform(X_train[columns_to_scale])
         X_test[columns_to_scale] = scaler.transform(X_test[columns_to_scale])
-        train_dataset = TabularDataset(X_train, y_train)
-        test_dataset = TabularDataset(X_test, y_test)
+        train_dataset = TabularDataset(X_train, y_train, device=device)
+        test_dataset = TabularDataset(X_test, y_test, device=device)
 
         train_loader = DataLoader(
             train_dataset, 

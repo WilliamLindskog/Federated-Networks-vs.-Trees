@@ -1,7 +1,10 @@
 num_clients: 4
+num_epochs: 5
+learning_rate: 0.005
 task: None
 federated: False 
 batch_size: 32
+device: cuda:0
 
 dataset:
   federated: ${federated}
@@ -12,6 +15,7 @@ dataset:
   num_classes: None
   test_frac: 0.2
   batch_size: ${batch_size}
+  device: ${device}
 
 model: 
   _target_: None
@@ -22,3 +26,10 @@ model:
   output_dim: ${dataset.num_classes}
   dropout: True
   dropout_prob: 0.1
+  num_epochs: ${num_epochs}
+  learning_rate: ${learning_rate}
+  batch_size: ${batch_size}
+  device: ${device}
+  loss_fn: ce
+  task: ${task}
+  optimizer: adam

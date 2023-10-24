@@ -57,7 +57,7 @@ def get_dataset(name: str) -> Tuple[Any, bool]:
 def dataset_main(cfg: DictConfig) -> Optional[DictConfig]:
     """Main function for dataset."""
     # Remove files in tmp folder
-    tmp_path = WORKING_DIR / 'tmp'
+    tmp_path = FL_BENCH_ROOT / 'tmp'
     for tmp_file in tmp_path.glob('*'):
         tmp_file.unlink()
     
@@ -75,8 +75,6 @@ def dataset_main(cfg: DictConfig) -> Optional[DictConfig]:
         # randomly split dataset into num_clients parts
         if csv:
             data = data.sample(frac=1).reset_index(drop=True)
-            print(data["dental caries"].value_counts())
-            quit()
             # split dataset into num_clients parts
             data_split = [data.iloc[i::num_clients, :].reset_index(drop=True) for i in range(num_clients)]
         else:

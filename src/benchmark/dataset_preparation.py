@@ -2,11 +2,12 @@ from typing import List, Tuple, Dict, Union, Any
 from pandas import DataFrame
 
 from torch.utils.data import Dataset, DataLoader
+import torch
 
 class TabularDataset(Dataset):
     """Tabular dataset."""
     
-    def __init__(self, data: DataFrame, target: str) -> None:
+    def __init__(self, data: DataFrame, target: str, device: str) -> None:
         """Initialize TabularDataset.
         
         Parameters
@@ -16,8 +17,9 @@ class TabularDataset(Dataset):
         target : str
             Target.
         """
-        self.data = data
-        self.target = target
+        self.data = data.astype('float32')
+        self.target = target.astype('float32')
+        self.device = device
 
     def __len__(self) -> int:
         """Get length of dataset.
@@ -44,7 +46,12 @@ class TabularDataset(Dataset):
         """
         data = self.data.iloc[idx]
         target = self.target.iloc[idx]
-        return data, target
+
+        # Set to tensor
+        data = torch.tensor(data.values)
+        # target is one value
+        target = torch.tensor(target)
+        return data.to(self.device), target.to(self.device)
 
 def dataset_prepare(name: str, dataset: Union[DataFrame, Any]) -> Any:
     """Prepare dataset.
