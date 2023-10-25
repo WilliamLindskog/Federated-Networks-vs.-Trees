@@ -11,9 +11,9 @@ import torch
 class MLP(Model):
     """MLP model."""
         
-    def __init__(self, name, **kwargs):
+    def __init__(self, **kwargs):
         """Initialize the model."""
-        super().__init__(name, **kwargs)
+        super(Model, self).__init__()
         # Set task and model
         self.task = kwargs['task']
         self.model = nn.Sequential()
@@ -31,6 +31,18 @@ class MLP(Model):
     def forward(self, x):
         """ Forward pass. """
         return self.model(x).to(self.device)
+    
+    def _one_train_epoch(self, data, target, **kwargs):
+        """One train epoch."""
+        # target = target.flatten()
+        self.optimizer.zero_grad()
+        output = self.model(data)
+        target = target.to(self.device)
+        loss = self._loss_fn(output, target)
+        loss.backward()
+        self.optimizer.step()
+
+        return loss, output
 
     def train(self, train_loader = None, **kwargs):
         """Train the model."""
@@ -39,17 +51,28 @@ class MLP(Model):
         
         # Train model
         self.model.train()
+        correct, total = 0, 0
+        loss = 0.0
         for epoch in range(self.epochs):
-            for _, (data, target) in enumerate(tqdm(train_loader)):
-                # Send data to device
-                data, target = data, target
-                target = target.unsqueeze(1)
-                self.optimizer.zero_grad()
-                output = self.model(data)
-                loss = self._loss_fn(output, target)
-                loss.backward()
-                self.optimizer.step()
+            for _, (data, target) in enumerate(train_loader):
+                # one train step
+                loss, output = self._one_train_epoch(data, target.long())
 
+                if self.task in ['binary', 'multi']:
+                    pred = torch.round(output)
+                    # correct += (pred == target).sum().item()
+                    total += target.size(0)
+                    correct += (torch.max(output.data, 1)[1] == target).sum().item()
+                else: 
+                    raise NotImplementedError(f"Task {self.task} not implemented.")
+
+            if self.task in ['binary', 'multi']:
+                metric, metric_name = correct/total, 'accuracy'
+                print(f'Epoch: {epoch+1}/{self.epochs}, Loss: {loss.item()}, {metric_name}: {metric}')
+            else:
+                raise NotImplementedError(f"Task {self.task} not implemented.")
+            
+        return {f'{metric_name}': metric}
     
     def predict(self, test_data, **kwargs):
         """Predict the test data."""
@@ -62,16 +85,18 @@ class MLP(Model):
         correct = 0
         total = 0
         with torch.no_grad():
-            for _, (data, target) in enumerate(tqdm(test_loader)):
+            for _, (data, target) in enumerate(test_loader):
                 # Send data to device
                 data, target = data, target
-                target = target.unsqueeze(1)
+                target = target.long()
                 output = self.model(data)
-                pred = torch.round(output)
-                correct += (pred == target).sum().item()
+                correct += (torch.max(output.data, 1)[1] == target).sum().item()
                 total += target.size(0)
 
-        print(f"Accuracy: {correct/total}")
+        loss = self._loss_fn(output, target)
+
+        # return loss and accuracy
+        return loss, correct / total
     
     def save(self, path, **kwargs):
         """Save the model."""
@@ -86,6 +111,7 @@ class MLP(Model):
         # Model architecture
         self.input_dim = kwargs['input_dim']
         self.hidden_dim = kwargs['hidden_dim']
+        self.output_dim = kwargs['output_dim']
         self.num_layers = kwargs['num_layers']
         self.dropout = kwargs['dropout']
         self.dropout_prob = kwargs['dropout_prob']
@@ -107,7 +133,10 @@ class MLP(Model):
         self._set_optimizer(optimizer)
         
     def _set_loss_fn(self, loss_fn: str):
-        if self.task in ['binary', 'multi']:
+        if self.task == 'binary':
+            assert loss_fn == 'bce'
+            self._loss_fn = nn.CrossEntropyLoss()
+        elif self.task == 'multi':
             assert loss_fn == 'ce'
             self._loss_fn = nn.CrossEntropyLoss()
         else:
@@ -130,10 +159,15 @@ class MLP(Model):
                 self.model.add_module(f'fc{layer}', nn.Linear(self.hidden_dim[layer-1], self.hidden_dim[layer]))
                 self.model.add_module(f'act{layer}', nn.ReLU())
 
-        self.model.add_module(f'fc{self.num_layers}', nn.Linear(self.hidden_dim[-1], 1))
-        self.model.add_module(f'act{self.num_layers}', nn.Sigmoid())
+        #if self.task == 'binary': 
+        #    self.model.add_module(f'fc{self.num_layers}', nn.Linear(self.hidden_dim[-1], 1))
+        #elif self.task == 'multi':
+        self.model.add_module(f'fc{self.num_layers}', nn.Linear(self.hidden_dim[-1], self.output_dim))
+        #else:
+        #    raise NotImplementedError(f"Task {self.task} not implemented.")
+        #self.model.add_module(f'act{self.num_layers}', nn.Sigmoid())
 
-        if self.dropout:
-            self.model.add_module(f'dropout{self.num_layers}', nn.Dropout(self.dropout_prob))
+        #if self.dropout:
+        #    self.model.add_module(f'dropout{self.num_layers}', nn.Dropout(self.dropout_prob))
 
         self.model.to(self.device)

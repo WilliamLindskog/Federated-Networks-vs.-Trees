@@ -3,6 +3,7 @@ from hydra.utils import instantiate
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
+import torch
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
@@ -10,6 +11,23 @@ from src.benchmark.dataset_preparation import TabularDataset
 from src.benchmark.constants import SMOKING_COLUMNS_TO_SCALE
 
 from torch.utils.data import DataLoader, Dataset
+
+import pickle
+from pathlib import Path
+from flwr.server.history import History
+from secrets import token_hex
+import matplotlib.pyplot as plt
+import numpy as np
+
+def get_on_fit_config(cfg: DictConfig):
+    """Get on fit config."""
+    def fit_config_fn(server_round: int):
+        # resolve and convert to python dict
+        fit_config = OmegaConf.to_container(cfg.fit_config, resolve=True)
+        _ = server_round
+        return fit_config
+
+    return fit_config_fn
 
 def initial_assertions(cfg: DictConfig) -> None:
     """Initial assertions.
@@ -22,6 +40,9 @@ def initial_assertions(cfg: DictConfig) -> None:
     assert len(cfg.model.hidden_dim) == cfg.model.num_layers, \
         "Number of hidden sizes must be equal to number of layers."
     _task_assertions(cfg)
+
+    assert cfg.clients_per_round <= cfg.num_clients, \
+        "Number of clients per round must be less than or equal to number of clients."
     
 def _task_assertions(cfg: DictConfig) -> None:
     """Task assertions.
@@ -115,7 +136,7 @@ def get_target_name(dataset_name: str) -> str:
     else:
         raise NotImplementedError(f"Dataset {dataset_name} not implemented.")
 
-def get_centralized_dataset(cfg: DictConfig) -> Any:
+def get_dataset(cfg: DictConfig, cid: str = None, server = False) -> Any:
     """Get centralized dataset.
     
     Parameters
@@ -131,11 +152,14 @@ def get_centralized_dataset(cfg: DictConfig) -> Any:
     name, device = cfg.name, cfg.device
     csv = True if name in ['smoking'] else False
 
-    columns_to_scale = SMOKING_COLUMNS_TO_SCALE
+    columns_to_scale = SMOKING_COLUMNS_TO_SCALE[name]
 
     tmp_path = "./tmp"
     if csv:
-        data = pd.read_csv(f'{tmp_path}/data.csv')
+        if cid is not None:
+            data = pd.read_csv(f'{tmp_path}/data_{cid}.csv')
+        else:
+            data = pd.read_csv(f'{tmp_path}/data.csv')
         X = data.drop(columns=[get_target_name(name)])
         y = data[get_target_name(name)]
         X_train, X_test, y_train, y_test = train_test_split(
@@ -165,3 +189,136 @@ def get_centralized_dataset(cfg: DictConfig) -> Any:
         raise NotImplementedError(f"Dataset {name} not implemented.")
     
     return train_loader, test_loader
+
+
+def get_server_dataset(cfg: DictConfig) -> Any:
+    """Get centralized dataset."""
+    name, device = cfg.name, cfg.device
+    csv = True if name in ['smoking'] else False
+
+    columns_to_scale = SMOKING_COLUMNS_TO_SCALE[name]
+
+    tmp_path = "./tmp"
+    if csv:
+        data = pd.read_csv(f'{tmp_path}/server_data.csv')
+        X = data.drop(columns=[get_target_name(name)])
+        y = data[get_target_name(name)]
+
+        scaler = StandardScaler()
+        X[columns_to_scale] = scaler.fit_transform(X[columns_to_scale])
+        dataset = TabularDataset(X, y, device=device)
+        loader = DataLoader(
+            dataset, 
+            batch_size=cfg.batch_size, 
+            shuffle=False,
+        )
+    else:
+        raise NotImplementedError(f"Dataset {name} not implemented.")
+    return loader
+
+def plot_metric_from_history(
+    hist: History,
+    save_plot_path: Path,
+    suffix: Optional[str] = "",
+    metric_type: Optional[str] = "centralized",
+) -> None:
+    """Plot from Flower server History.
+
+    Parameters
+    ----------
+    hist : History
+        Object containing evaluation for all rounds.
+    save_plot_path : Path
+        Folder to save the plot to.
+    suffix: Optional[str]
+        Optional string to add at the end of the filename for the plot.
+    """
+    metric_dict = (
+        hist.metrics_centralized
+        if metric_type == "centralized"
+        else hist.metrics_distributed
+    )
+    _, values = zip(*metric_dict["accuracy"])
+
+    if metric_type == "centralized":
+        rounds_loss, values_loss = zip(*hist.losses_centralized)
+        # make tuple of normal floats instead of tensors
+        values_loss = tuple(x.item() for x in values_loss)
+    else:
+        # let's extract decentralized loss (main metric reported in FedProx paper)
+        rounds_loss, values_loss = zip(*hist.losses_distributed)
+
+
+    _, axs = plt.subplots(nrows=2, ncols=1, sharex="row")
+    axs[0].plot(np.asarray(rounds_loss), np.asarray(values_loss))
+    if metric_type == "centralized":
+        axs[1].plot(np.asarray(rounds_loss), np.asarray(values))    
+    else:
+        axs[1].plot(np.asarray(rounds_loss), np.asarray(values))
+
+    axs[0].set_ylabel("Loss")
+    axs[1].set_ylabel("Accuracy")
+
+    # plt.title(f"{metric_type.capitalize()} Validation - MNIST")
+    plt.xlabel("Rounds")
+    # plt.legend(loc="lower right")
+
+    plt.savefig(Path(save_plot_path) / Path(f"{metric_type}_metrics{suffix}.png"))
+    plt.close()
+
+
+def save_results_as_pickle(
+    history: History,
+    file_path: Union[str, Path],
+    default_filename: Optional[str] = "results.pkl",
+) -> None:
+    """Save results from simulation to pickle.
+
+    Parameters
+    ----------
+    history: History
+        History returned by start_simulation.
+    file_path: Union[str, Path]
+        Path to file to create and store both history and extra_results.
+        If path is a directory, the default_filename will be used.
+        path doesn't exist, it will be created. If file exists, a
+        randomly generated suffix will be added to the file name. This
+        is done to avoid overwritting results.
+    extra_results : Optional[Dict]
+        A dictionary containing additional results you would like
+        to be saved to disk. Default: {} (an empty dictionary)
+    default_filename: Optional[str]
+        File used by default if file_path points to a directory instead
+        to a file. Default: "results.pkl"
+    """
+    path = Path(file_path)
+
+    # ensure path exists
+    path.mkdir(exist_ok=True, parents=True)
+
+    def _add_random_suffix(path_: Path):
+        """Add a random suffix to the file name."""
+        print(f"File `{path_}` exists! ")
+        suffix = token_hex(4)
+        print(f"New results to be saved with suffix: {suffix}")
+        return path_.parent / (path_.stem + "_" + suffix + ".pkl")
+
+    def _complete_path_with_default_name(path_: Path):
+        """Append the default file name to the path."""
+        print("Using default filename")
+        if default_filename is None:
+            return path_
+        return path_ / default_filename
+
+    if path.is_dir():
+        path = _complete_path_with_default_name(path)
+
+    if path.is_file():
+        path = _add_random_suffix(path)
+
+    print(f"Results will be saved into: {path}")
+    # data = {"history": history, **extra_results}
+    data = {"history": history}
+    # save results to pickle
+    with open(str(path), "wb") as handle:
+        pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)

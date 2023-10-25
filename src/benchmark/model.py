@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
+import torch.nn as nn
 
-class Model(ABC):
+class Model(ABC, nn.Module):
     """Abstract class for models."""
     
     @abstractmethod

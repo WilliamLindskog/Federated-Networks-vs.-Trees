@@ -7,6 +7,8 @@ import pandas as pd
 from typing import Tuple, Any, Union, Optional
 from src.benchmark.dataset_preparation import dataset_prepare
 
+from sklearn.model_selection import train_test_split
+
 WORKING_DIR = Path(__file__).resolve().parent
 FL_BENCH_ROOT = WORKING_DIR.parent.parent
 
@@ -68,6 +70,11 @@ def dataset_main(cfg: DictConfig) -> Optional[DictConfig]:
     
     # Prepare dataset
     data = dataset_prepare(name, data)
+
+    if cfg.server_dataset:
+        # split dataset into client and server data
+        data, server_data = train_test_split(data, test_size=cfg.server_dataset_frac, random_state=42)
+        server_data.to_csv(tmp_path / 'server_data.csv', index=False)
     
     # Split dataset for each client (iid or niid)
     if cfg.iid:
