@@ -27,7 +27,6 @@ class BaseClient(NumPyClient):
         self.valloader = valloader
 
     def get_parameters(self, config):
-        print(f"[Client {self.cid}] get_parameters")
         return [val.cpu().numpy() for _, val in self.model.state_dict().items()]
     
     def set_parameters(self, parameters: List[np.ndarray]):

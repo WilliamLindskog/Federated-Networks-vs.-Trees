@@ -69,6 +69,14 @@ def get_dataset(name: str) -> Tuple[Any, bool]:
             data = pd.concat(data_list)
             data.to_csv(FL_BENCH_ROOT / 'data' / 'heart_disease' / 'heart.csv', index=False)
         csv = True
+    elif name == 'lumpy':
+        data = pd.read_csv(FL_BENCH_ROOT / 'data' / 'lumpy_skin' / 'lumpy_skin.csv')
+        csv = True
+    elif name == 'machine':
+        data = pd.read_csv(
+            FL_BENCH_ROOT / 'data' / 'machine_maintenance' / 'predictive_maintenance.csv'
+        )
+        csv = True
     else:
         raise NotImplementedError(f'Unknown dataset {name}')
 

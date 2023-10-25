@@ -14,7 +14,7 @@ dataset:
   iid: True
   server_dataset: True
   server_dataset_frac: 0.1
-  name: heart
+  name: machine
   num_clients: ${num_clients}
   num_features: None
   num_classes: None

@@ -1,13 +1,14 @@
 from typing import List, Tuple, Dict, Union, Any
-from pandas import DataFrame
+import pandas as pd
 
 from torch.utils.data import Dataset, DataLoader
 import torch
+from geopy.geocoders import Nominatim
 
 class TabularDataset(Dataset):
     """Tabular dataset."""
     
-    def __init__(self, data: DataFrame, target: str, device: str) -> None:
+    def __init__(self, data: pd.DataFrame, target: str, device: str) -> None:
         """Initialize TabularDataset.
         
         Parameters
@@ -53,7 +54,7 @@ class TabularDataset(Dataset):
         target = torch.tensor(target)
         return data.to(self.device), target.to(self.device)
 
-def dataset_prepare(name: str, dataset: Union[DataFrame, Any]) -> Any:
+def dataset_prepare(name: str, dataset: Union[pd.DataFrame, Any]) -> Any:
     """Prepare dataset.
     
     Parameters
@@ -74,12 +75,42 @@ def dataset_prepare(name: str, dataset: Union[DataFrame, Any]) -> Any:
         smoking_processing(dataset)
     elif name == 'heart':
         heart_preprocessing(dataset)
+    elif name == 'lumpy':
+        lumpy_preprocessing(dataset)
+    elif name == 'machine':
+        machine_preprocessing(dataset)
     else:
         raise NotImplementedError(f'Unknown dataset {name}')
     
     return dataset
 
-def heart_preprocessing(dataset: DataFrame) -> None:
+def machine_preprocessing(dataset: pd.DataFrame) -> None:
+    """Processing machine dataset."""
+
+    # Encode categorical features
+    for col in dataset.columns:
+        if dataset[col].dtype == 'object':
+            print("Encoding categorical feature: ", col)
+            dataset[col] = dataset[col].astype('category').cat.codes
+            # Set to int64
+            dataset[col] = dataset[col].astype('int64')
+    
+    return dataset
+
+def lumpy_preprocessing(dataset: pd.DataFrame) -> None:
+    """ Lumpy skin data preprocessing. """
+
+    # Encode categorical features
+    for col in dataset.columns:
+        if dataset[col].dtype == 'object':
+            print("Encoding categorical feature: ", col)
+            dataset[col] = dataset[col].astype('category').cat.codes
+            # Set to int64
+            dataset[col] = dataset[col].astype('int64')
+
+    return dataset
+
+def heart_preprocessing(dataset: pd.DataFrame) -> None:
     """Processing heart disease dataset."""
 
     # Encode categorical features
@@ -92,7 +123,7 @@ def heart_preprocessing(dataset: DataFrame) -> None:
 
     return dataset
 
-def smoking_processing(dataset: DataFrame) -> None:
+def smoking_processing(dataset: pd.DataFrame) -> None:
     """Processing smoking dataset."""
     
     # Drop ID and oral column
