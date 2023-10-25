@@ -51,6 +51,24 @@ def get_dataset(name: str) -> Tuple[Any, bool]:
     if name == 'smoking':
         data = pd.read_csv(FL_BENCH_ROOT / 'data' / 'smoking' / 'smoking.csv')
         csv = True
+    elif name == 'heart':
+        try:
+            data = pd.read_csv(FL_BENCH_ROOT / 'data' / 'heart_disease' / 'heart.csv')
+        except FileNotFoundError:
+            columns = [
+                'age', 'sex', 'cp', 'trestbps', 'chol', 'fbs', 'restecg',  
+                'thalach', 'exang', 'oldpeak', 'slope', 'ca', 'thal', 'target'
+            ]
+            data_list = []
+            for i, data_file in enumerate((FL_BENCH_ROOT / 'data' / 'heart_disease').glob('*')):
+                data = pd.read_csv(data_file, header=None, names=columns)
+                data['region'] = i
+                # if value target is larger than 0, set to 1
+                data['target'] = data['target'].apply(lambda x: 1 if x > 0 else 0)
+                data_list.append(data)
+            data = pd.concat(data_list)
+            data.to_csv(FL_BENCH_ROOT / 'data' / 'heart_disease' / 'heart.csv', index=False)
+        csv = True
     else:
         raise NotImplementedError(f'Unknown dataset {name}')
 

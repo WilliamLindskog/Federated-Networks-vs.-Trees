@@ -18,5 +18,8 @@ SMOKING_COLUMNS_TO_SCALE = {
         "AST",
         "ALT",
         "Gtp",
+    ],
+    'heart' : [
+        "age", "trestbps", "chol", "thalach", "oldpeak",
     ]
 }

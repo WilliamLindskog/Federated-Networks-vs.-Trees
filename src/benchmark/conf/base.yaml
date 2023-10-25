@@ -1,11 +1,11 @@
 num_clients: 3
 clients_per_round: 3
 num_epochs: 2
-num_rounds: 2
-learning_rate: 0.0005
+num_rounds: 100
+learning_rate: 0.0001
 task: None
 federated: True 
-batch_size: 256
+batch_size: 8
 device: cuda:0
 metric_type: centralized
 
@@ -14,7 +14,7 @@ dataset:
   iid: True
   server_dataset: True
   server_dataset_frac: 0.1
-  name: smoking
+  name: heart
   num_clients: ${num_clients}
   num_features: None
   num_classes: None

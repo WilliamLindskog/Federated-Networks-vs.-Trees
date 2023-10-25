@@ -68,7 +68,7 @@ class MLP(Model):
 
             if self.task in ['binary', 'multi']:
                 metric, metric_name = correct/total, 'accuracy'
-                print(f'Epoch: {epoch+1}/{self.epochs}, Loss: {loss.item()}, {metric_name}: {metric}')
+                # print(f'Epoch: {epoch+1}/{self.epochs}, Loss: {loss.item()}, {metric_name}: {metric}')
             else:
                 raise NotImplementedError(f"Task {self.task} not implemented.")
             

@@ -52,7 +52,7 @@ def _task_assertions(cfg: DictConfig) -> None:
     cfg : DictConfig
         Configuration file.
     """
-    if cfg.dataset.name == 'smoking':
+    if cfg.dataset.name in ['smoking', 'heart']:
         assert cfg.task == 'binary', \
             "Task must be classification for smoking dataset."
         assert cfg.dataset.num_classes == 2, \
@@ -97,7 +97,7 @@ def set_dataset_task(name: str, cfg: DictConfig) -> DictConfig:
         Configuration file.
     """
 
-    if name == 'smoking':
+    if name in ['smoking', 'heart']:
         cfg.dataset.num_classes = 2
         cfg.task = 'binary'
     else:
@@ -133,6 +133,8 @@ def get_target_name(dataset_name: str) -> str:
 
     if dataset_name == 'smoking':
         return 'smoking'
+    elif dataset_name == 'heart':
+        return 'target'
     else:
         raise NotImplementedError(f"Dataset {dataset_name} not implemented.")
 
@@ -150,7 +152,7 @@ def get_dataset(cfg: DictConfig, cid: str = None, server = False) -> Any:
         Dataset.
     """
     name, device = cfg.name, cfg.device
-    csv = True if name in ['smoking'] else False
+    csv = True if name in ['smoking', 'heart'] else False
 
     columns_to_scale = SMOKING_COLUMNS_TO_SCALE[name]
 
@@ -194,7 +196,7 @@ def get_dataset(cfg: DictConfig, cid: str = None, server = False) -> Any:
 def get_server_dataset(cfg: DictConfig) -> Any:
     """Get centralized dataset."""
     name, device = cfg.name, cfg.device
-    csv = True if name in ['smoking'] else False
+    csv = True if name in ['smoking', 'heart'] else False
 
     columns_to_scale = SMOKING_COLUMNS_TO_SCALE[name]
 

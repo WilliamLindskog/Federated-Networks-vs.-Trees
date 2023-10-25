@@ -72,9 +72,24 @@ def dataset_prepare(name: str, dataset: Union[DataFrame, Any]) -> Any:
     # Get dataset path
     if name == 'smoking':
         smoking_processing(dataset)
+    elif name == 'heart':
+        heart_preprocessing(dataset)
     else:
         raise NotImplementedError(f'Unknown dataset {name}')
     
+    return dataset
+
+def heart_preprocessing(dataset: DataFrame) -> None:
+    """Processing heart disease dataset."""
+
+    # Encode categorical features
+    for col in dataset.columns:
+        if dataset[col].dtype == 'object':
+            print("Encoding categorical feature: ", col)
+            dataset[col] = dataset[col].astype('category').cat.codes
+            # Set to int64
+            dataset[col] = dataset[col].astype('int64')
+
     return dataset
 
 def smoking_processing(dataset: DataFrame) -> None:
