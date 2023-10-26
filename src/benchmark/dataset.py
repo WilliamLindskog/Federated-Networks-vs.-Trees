@@ -8,6 +8,10 @@ from typing import Tuple, Any, Union, Optional
 from src.benchmark.dataset_preparation import dataset_prepare
 
 from sklearn.model_selection import train_test_split
+import subprocess
+import json
+import matplotlib.pyplot as plt
+import numpy as np
 
 WORKING_DIR = Path(__file__).resolve().parent
 FL_BENCH_ROOT = WORKING_DIR.parent.parent
@@ -34,7 +38,7 @@ def get_dataset_path(name: str) -> Tuple[Path, bool]:
     else:
         raise NotImplementedError(f'Unknown dataset {name}')
 
-def get_dataset(name: str) -> Tuple[Any, bool]:
+def get_dataset(name: str, femnist_cfg: DictConfig = None) -> Tuple[Any, bool]:
     """Get dataset.
     
     Parameters
@@ -77,6 +81,80 @@ def get_dataset(name: str) -> Tuple[Any, bool]:
             FL_BENCH_ROOT / 'data' / 'machine_maintenance' / 'predictive_maintenance.csv'
         )
         csv = True
+    elif name == 'femnist':
+        assert femnist_cfg is not None, 'Femnist config is None'
+        femnist_path = FL_BENCH_ROOT / 'data' / 'leaf' / 'data' / 'femnist'
+        data_path = femnist_path / 'data'
+        # remove folders "train", "test", "rem_user_data", "sampled_data" in data_path
+        if femnist_cfg.delete_old_partitions:
+            for folder in data_path.glob('*'):
+                if folder.is_dir() and folder.name in [
+                    'rem_user_data', 'sampled_data', 'train', 'test'
+                ]:
+                    for file in folder.glob('*'):
+                        file.unlink()
+                    folder.rmdir()
+        
+        # go thorugh files in data_path train and test
+        else:
+            femnist_data_path = data_path / 'femnist.csv'
+            if not femnist_data_path.exists():
+                train_path = data_path / 'train'
+                test_path = data_path / 'test'
+                df_list = []
+                for n, path in enumerate([train_path, test_path]):
+                    for file in path.glob('*'):
+                        print(file)
+                        with open(file) as f:
+                            data = json.load(f)
+                            users = data['users']
+                            for user in users:
+                                user_data = {'x': data['user_data'][user]['x'], 'y': data['user_data'][user]['y']}
+                                for i in range(len(user_data['x'])):
+                                    user_data['x'][i] = np.array(user_data['x'][i])
+                                    for j in range(len(user_data['x'][i])):
+                                        user_data[f'x_{j}'] = user_data['x'][i][j]
+                                    user_data['y'][i] = np.array(user_data['y'][i])
+                                    df_temp = pd.DataFrame({k: [v] for k, v in user_data.items() if k not in ['x', 'y']})
+                                    df_temp['y'] = user_data['y'][i]
+                                    df_temp['user'] = user
+                                    df_list.append(df_temp)
+                # name df based on n
+                df = pd.concat(df_list)
+                df.to_csv(femnist_data_path, index=False)
+            csv = True
+            data = pd.read_csv(femnist_data_path)
+    
+    elif name == 'synthetic':
+        synthetic_path = FL_BENCH_ROOT / 'data' / 'leaf' / 'data' / 'synthetic'
+        data_path = synthetic_path / 'data'
+
+        train_path = data_path / 'train'
+        test_path = data_path / 'test'
+        df_list = []
+        synthetic_data_path = data_path / 'synthetic.csv'
+        if not synthetic_data_path.exists():
+            for n, path in enumerate([train_path, test_path]):
+                for file in path.glob('*'):
+                    with open(file) as f:
+                        data = json.load(f)
+                        users = data['users']
+                        for user in users:
+                            user_data = {'x': data['user_data'][user]['x'], 'y': data['user_data'][user]['y']}
+                            for i in range(len(user_data['x'])):
+                                user_data['x'][i] = np.array(user_data['x'][i])
+                                for j in range(len(user_data['x'][i])):
+                                    user_data[f'x_{j}'] = user_data['x'][i][j]
+                                user_data['y'][i] = np.array(user_data['y'][i])
+                                df_temp = pd.DataFrame({k: [v] for k, v in user_data.items() if k not in ['x', 'y']})
+                                df_temp['y'] = user_data['y'][i]
+                                df_temp['user'] = user
+                                df_list.append(df_temp)
+                # name df based on n
+                df = pd.concat(df_list)
+                df.to_csv(synthetic_data_path, index=False)
+        csv = True
+        data = pd.read_csv(synthetic_data_path)
     else:
         raise NotImplementedError(f'Unknown dataset {name}')
 
@@ -91,11 +169,14 @@ def dataset_main(cfg: DictConfig) -> Optional[DictConfig]:
     
     # Get dataset
     name = cfg.name.lower()
-    data, csv = get_dataset(name)
+    data, csv = get_dataset(name) if name != 'femnist' else get_dataset(name, cfg.femnist)
     # print length of unique values for each column
     
     # Prepare dataset
     data = dataset_prepare(name, data)
+
+    if cfg.iid and name == 'femnist':
+        data.drop(columns=['user'], inplace=True)
 
     if cfg.server_dataset:
         # split dataset into client and server data

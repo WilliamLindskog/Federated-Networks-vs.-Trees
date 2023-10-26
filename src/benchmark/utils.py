@@ -57,6 +57,13 @@ def _task_assertions(cfg: DictConfig) -> None:
             "Task must be classification for smoking dataset."
         assert cfg.dataset.num_classes == 2, \
             "Number of classes must be 2 for smoking dataset."
+    elif cfg.dataset.name == 'femnist':
+        assert cfg.task == 'multiclass', \
+            "Task must be multiclass for femnist dataset."
+        assert cfg.dataset.num_classes == 62, \
+            "Number of classes must be 62 for femnist dataset."
+    elif cfg.dataset.name == 'synthetic':
+        pass
     else:
         raise NotImplementedError(f"Dataset {cfg.dataset.name} not implemented.")
 
@@ -100,6 +107,11 @@ def set_dataset_task(name: str, cfg: DictConfig) -> DictConfig:
     if name in ['smoking', 'heart', 'lumpy', 'machine']:
         cfg.dataset.num_classes = 2
         cfg.task = 'binary'
+    elif name == 'femnist':
+        cfg.dataset.num_classes = 62
+        cfg.task = 'multiclass'
+    elif name == 'synthetic':
+        pass
     else:
         raise NotImplementedError(f"Dataset {name} not implemented.")
     return cfg
@@ -139,6 +151,8 @@ def get_target_name(dataset_name: str) -> str:
         return 'lumpy'
     elif dataset_name == 'machine':
         return 'Target'
+    elif dataset_name in ['femnist','synthetic']:
+        return 'y'
     else:
         raise NotImplementedError(f"Dataset {dataset_name} not implemented.")
 
@@ -156,9 +170,12 @@ def get_dataset(cfg: DictConfig, cid: str = None, server = False) -> Any:
         Dataset.
     """
     name, device = cfg.name, cfg.device
-    csv = True if name in ['smoking', 'heart', 'lumpy', 'machine'] else False
+    csv = True if name in ['smoking', 'heart', 'lumpy', 'machine', 'femnist', 'synthetic'] else False
 
-    columns_to_scale = SMOKING_COLUMNS_TO_SCALE[name]
+    if name not in ['femnist', 'synthetic']:
+        columns_to_scale = SMOKING_COLUMNS_TO_SCALE[name]
+    else:
+        columns_to_scale = None
 
     tmp_path = "./tmp"
     if csv:
@@ -175,8 +192,9 @@ def get_dataset(cfg: DictConfig, cid: str = None, server = False) -> Any:
             random_state=42,
         )
         scaler = StandardScaler()
-        X_train[columns_to_scale] = scaler.fit_transform(X_train[columns_to_scale])
-        X_test[columns_to_scale] = scaler.transform(X_test[columns_to_scale])
+        if columns_to_scale is not None:
+            X_train[columns_to_scale] = scaler.fit_transform(X_train[columns_to_scale])
+            X_test[columns_to_scale] = scaler.transform(X_test[columns_to_scale])
         train_dataset = TabularDataset(X_train, y_train, device=device)
         test_dataset = TabularDataset(X_test, y_test, device=device)
 
@@ -200,9 +218,12 @@ def get_dataset(cfg: DictConfig, cid: str = None, server = False) -> Any:
 def get_server_dataset(cfg: DictConfig) -> Any:
     """Get centralized dataset."""
     name, device = cfg.name, cfg.device
-    csv = True if name in ['smoking', 'heart', 'lumpy', 'machine'] else False
+    csv = True if name in ['smoking', 'heart', 'lumpy', 'machine', 'femnist', 'synthetic'] else False
 
-    columns_to_scale = SMOKING_COLUMNS_TO_SCALE[name]
+    if name not in ['femnist', 'synthetic']:
+        columns_to_scale = SMOKING_COLUMNS_TO_SCALE[name]
+    else:
+        columns_to_scale = None
 
     tmp_path = "./tmp"
     if csv:
@@ -211,7 +232,8 @@ def get_server_dataset(cfg: DictConfig) -> Any:
         y = data[get_target_name(name)]
 
         scaler = StandardScaler()
-        X[columns_to_scale] = scaler.fit_transform(X[columns_to_scale])
+        if columns_to_scale is not None:
+            X[columns_to_scale] = scaler.fit_transform(X[columns_to_scale]) 
         dataset = TabularDataset(X, y, device=device)
         loader = DataLoader(
             dataset, 

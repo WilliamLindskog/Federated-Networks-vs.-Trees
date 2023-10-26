@@ -5,6 +5,7 @@ from hydra.utils import instantiate
 from omegaconf import DictConfig, OmegaConf
 from typing import Any, Dict, List, Optional, Tuple, Union
 from src.benchmark.dataset import dataset_main
+import pandas as pd
 
 from src.benchmark.utils import (
     get_model, 
@@ -43,6 +44,10 @@ def main(cfg: DictConfig):
 
     # 2. Prepare dataset
     cfg.dataset = dataset_main(cfg.dataset)
+    if cfg.dataset.name == 'synthetic':
+        tmp_data = pd.read_csv(f'./data/leaf/data/synthetic/data/synthetic.csv')
+        cfg.dataset.num_classes = len(tmp_data['y'].unique())
+        cfg.task = 'multiclass'
 
     # 3. Prepare model
     model = get_model(cfg.model)

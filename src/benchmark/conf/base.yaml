@@ -1,11 +1,11 @@
-num_clients: 3
+num_clients: 4
 clients_per_round: 3
 num_epochs: 2
 num_rounds: 100
 learning_rate: 0.0001
 task: None
 federated: True 
-batch_size: 8
+batch_size: 16
 device: cuda:0
 metric_type: centralized
 
@@ -14,13 +14,14 @@ dataset:
   iid: True
   server_dataset: True
   server_dataset_frac: 0.1
-  name: machine
+  name: synthetic
   num_clients: ${num_clients}
   num_features: None
   num_classes: None
   test_frac: 0.2
   batch_size: ${batch_size}
   device: ${device}
+  femnist: ${femnist}
 
 model: 
   _target_: None
@@ -35,7 +36,7 @@ model:
   learning_rate: ${learning_rate}
   batch_size: ${batch_size}
   device: ${device}
-  loss_fn: bce
+  loss_fn: ce
   task: ${task}
   optimizer: adam
 
@@ -55,3 +56,10 @@ strategy:
   fraction_evaluate: 1.0
   min_evaluate_clients: ${clients_per_round}
   min_available_clients: ${num_clients}
+
+femnist:
+  niid: True
+  sample_frac: 0.05
+  min_num_samples: 128
+  partition: sample
+  delete_old_partitions: False

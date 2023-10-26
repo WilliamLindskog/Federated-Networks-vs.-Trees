@@ -72,16 +72,40 @@ def dataset_prepare(name: str, dataset: Union[pd.DataFrame, Any]) -> Any:
 
     # Get dataset path
     if name == 'smoking':
-        smoking_processing(dataset)
+        dataset = smoking_processing(dataset)
     elif name == 'heart':
-        heart_preprocessing(dataset)
+        dataset = heart_preprocessing(dataset)
     elif name == 'lumpy':
-        lumpy_preprocessing(dataset)
+        dataset = lumpy_preprocessing(dataset)
     elif name == 'machine':
-        machine_preprocessing(dataset)
+        dataset = machine_preprocessing(dataset)
+    elif name == 'femnist':
+        dataset = femnist_preprocessing(dataset)
+    elif name == 'synthetic':
+        pass
     else:
         raise NotImplementedError(f'Unknown dataset {name}')
     
+    return dataset
+
+def femnist_preprocessing(dataset: pd.DataFrame) -> None:
+    print("FEMNIST preprocessing")
+    # remove all columns where all values are the same
+    print(dataset.shape)
+    dataset = dataset.loc[:, (dataset != dataset.iloc[0]).any()]
+    print(dataset.shape)
+    # remove all columns where 99% of values are the same
+    dataset = dataset.loc[:, (dataset == dataset.iloc[0]).sum() < 0.99*len(dataset)]
+    print(dataset.shape)
+
+    # Encode categorical features
+    for col in dataset.columns:
+        if dataset[col].dtype == 'object':
+            print("Encoding categorical feature: ", col)
+            dataset[col] = dataset[col].astype('category').cat.codes
+            # Set to int64
+            dataset[col] = dataset[col].astype('int64')
+
     return dataset
 
 def machine_preprocessing(dataset: pd.DataFrame) -> None:

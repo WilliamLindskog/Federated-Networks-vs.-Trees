@@ -58,7 +58,7 @@ class MLP(Model):
                 # one train step
                 loss, output = self._one_train_epoch(data, target.long())
 
-                if self.task in ['binary', 'multi']:
+                if self.task in ['binary', 'multiclass']:
                     pred = torch.round(output)
                     # correct += (pred == target).sum().item()
                     total += target.size(0)
@@ -66,7 +66,7 @@ class MLP(Model):
                 else: 
                     raise NotImplementedError(f"Task {self.task} not implemented.")
 
-            if self.task in ['binary', 'multi']:
+            if self.task in ['binary', 'multiclass']:
                 metric, metric_name = correct/total, 'accuracy'
                 # print(f'Epoch: {epoch+1}/{self.epochs}, Loss: {loss.item()}, {metric_name}: {metric}')
             else:
@@ -133,10 +133,7 @@ class MLP(Model):
         self._set_optimizer(optimizer)
         
     def _set_loss_fn(self, loss_fn: str):
-        if self.task == 'binary':
-            assert loss_fn == 'bce'
-            self._loss_fn = nn.CrossEntropyLoss()
-        elif self.task == 'multi':
+        if self.task in ['binary', 'multiclass']:
             assert loss_fn == 'ce'
             self._loss_fn = nn.CrossEntropyLoss()
         else:
