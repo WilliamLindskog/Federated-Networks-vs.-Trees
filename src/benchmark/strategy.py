@@ -57,13 +57,20 @@ class SaveModelStrategy(FedAvg):
         _ = aggregated_metrics  # Avoid unused variable warning
 
         # Weigh accuracy of each client by number of examples used
-        accuracies: List[float] = []
+        metric_list: List[float] = []
         for _, res in results:
-            accuracy: float = float(res.metrics["accuracy"])
-            accuracies.append(accuracy)
-        print(f"Round {server_round} accuracies: {accuracies}")
+            if "accuracy" in res.metrics.keys():
+                metric: float = float(res.metrics["accuracy"])
+                metric_list.append(metric)
+                metric_name = "accuracy"
+            else: 
+                metric: float = float(res.metrics["loss"])
+                metric_list.append(metric)
+                metric_name = "loss"
+
+        print(f"Round {server_round} {metric_name}: {metric_list}")
 
         # Aggregate and print custom metric
-        averaged_accuracy = sum(accuracies) / len(accuracies)
-        print(f"Round {server_round} accuracy averaged: {averaged_accuracy}")
-        return aggregated_loss, {"accuracy": averaged_accuracy}
+        averaged_metric = sum(metric_list) / len(metric_list)
+        print(f"Round {server_round} {metric_name} averaged: {averaged_metric}")
+        return aggregated_loss, {f"{metric_name}": averaged_metric}

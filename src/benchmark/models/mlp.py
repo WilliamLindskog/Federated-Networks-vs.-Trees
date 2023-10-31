@@ -56,19 +56,27 @@ class MLP(Model):
         for epoch in range(self.epochs):
             for _, (data, target) in enumerate(train_loader):
                 # one train step
-                loss, output = self._one_train_epoch(data, target.long())
+                if self.task in ['binary', 'multiclass']:
+                    loss, output = self._one_train_epoch(data, target.long())
+                elif self.task == 'regression':
+                    loss, output = self._one_train_epoch(data, target.unsqueeze(1))
 
                 if self.task in ['binary', 'multiclass']:
                     pred = torch.round(output)
                     # correct += (pred == target).sum().item()
                     total += target.size(0)
                     correct += (torch.max(output.data, 1)[1] == target).sum().item()
+                elif self.task == 'regression':
+                    pass
                 else: 
                     raise NotImplementedError(f"Task {self.task} not implemented.")
 
             if self.task in ['binary', 'multiclass']:
                 metric, metric_name = correct/total, 'accuracy'
                 # print(f'Epoch: {epoch+1}/{self.epochs}, Loss: {loss.item()}, {metric_name}: {metric}')
+            elif self.task == 'regression':
+                metric, metric_name = loss.item(), 'loss'
+                # print(f'Epoch: {epoch+1}/{self.epochs}, Loss: {loss.item()}')
             else:
                 raise NotImplementedError(f"Task {self.task} not implemented.")
             
@@ -87,16 +95,22 @@ class MLP(Model):
         with torch.no_grad():
             for _, (data, target) in enumerate(test_loader):
                 # Send data to device
-                data, target = data, target
-                target = target.long()
+                data, target = data, target.unsqueeze(1)
+                if self.task in ['binary', 'multiclass']:
+                    target = target.long()
                 output = self.model(data)
                 correct += (torch.max(output.data, 1)[1] == target).sum().item()
                 total += target.size(0)
 
         loss = self._loss_fn(output, target)
 
-        # return loss and accuracy
-        return loss, correct / total
+        if self.task in ['binary', 'multiclass']:
+            # return loss and accuracy
+            return loss, correct / total
+        elif self.task == 'regression':
+            return loss, loss
+        else:
+            raise NotImplementedError(f"Task {self.task} not implemented.")
     
     def save(self, path, **kwargs):
         """Save the model."""
@@ -136,6 +150,9 @@ class MLP(Model):
         if self.task in ['binary', 'multiclass']:
             assert loss_fn == 'ce'
             self._loss_fn = nn.CrossEntropyLoss()
+        elif self.task == 'regression':
+            assert loss_fn == 'mse'
+            self._loss_fn = nn.MSELoss()
         else:
             raise NotImplementedError(f"Loss function {loss_fn} not implemented.")
         

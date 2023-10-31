@@ -83,9 +83,23 @@ def dataset_prepare(name: str, dataset: Union[pd.DataFrame, Any]) -> Any:
         dataset = femnist_preprocessing(dataset)
     elif name == 'synthetic':
         pass
+    elif name == 'insurance':
+        dataset = insurance_preprocessing(dataset)
     else:
         raise NotImplementedError(f'Unknown dataset {name}')
     
+    return dataset
+
+def insurance_preprocessing(dataset: pd.DataFrame) -> pd.DataFrame:
+    """Processing insurance dataset."""
+    # Encode categorical features
+    for col in dataset.columns:
+        if dataset[col].dtype == 'object':
+            print("Encoding categorical feature: ", col)
+            dataset[col] = dataset[col].astype('category').cat.codes
+            # Set to int64
+            dataset[col] = dataset[col].astype('int64')
+            
     return dataset
 
 def femnist_preprocessing(dataset: pd.DataFrame) -> None:

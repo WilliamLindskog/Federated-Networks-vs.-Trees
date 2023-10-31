@@ -64,6 +64,11 @@ def _task_assertions(cfg: DictConfig) -> None:
             "Number of classes must be 62 for femnist dataset."
     elif cfg.dataset.name == 'synthetic':
         pass
+    elif cfg.dataset.name == 'insurance':
+        assert cfg.task == 'regression', \
+            "Task must be regression for insurance dataset."
+        assert cfg.dataset.num_classes == 1, \
+            "Number of classes must be 1 for insurance dataset."
     else:
         raise NotImplementedError(f"Dataset {cfg.dataset.name} not implemented.")
 
@@ -112,6 +117,9 @@ def set_dataset_task(name: str, cfg: DictConfig) -> DictConfig:
         cfg.task = 'multiclass'
     elif name == 'synthetic':
         pass
+    elif name == 'insurance':
+        cfg.dataset.num_classes = 1
+        cfg.task = 'regression'
     else:
         raise NotImplementedError(f"Dataset {name} not implemented.")
     return cfg
@@ -153,6 +161,8 @@ def get_target_name(dataset_name: str) -> str:
         return 'Target'
     elif dataset_name in ['femnist','synthetic']:
         return 'y'
+    elif dataset_name == 'insurance':
+        return 'charges'
     else:
         raise NotImplementedError(f"Dataset {dataset_name} not implemented.")
 
@@ -170,7 +180,9 @@ def get_dataset(cfg: DictConfig, cid: str = None, server = False) -> Any:
         Dataset.
     """
     name, device = cfg.name, cfg.device
-    csv = True if name in ['smoking', 'heart', 'lumpy', 'machine', 'femnist', 'synthetic'] else False
+    csv = True if name in [
+        'smoking', 'heart', 'lumpy', 'machine', 'femnist', 'synthetic', 'insurance'
+    ] else False
 
     if name not in ['femnist', 'synthetic']:
         columns_to_scale = SMOKING_COLUMNS_TO_SCALE[name]
@@ -218,7 +230,9 @@ def get_dataset(cfg: DictConfig, cid: str = None, server = False) -> Any:
 def get_server_dataset(cfg: DictConfig) -> Any:
     """Get centralized dataset."""
     name, device = cfg.name, cfg.device
-    csv = True if name in ['smoking', 'heart', 'lumpy', 'machine', 'femnist', 'synthetic'] else False
+    csv = True if name in [
+        'smoking', 'heart', 'lumpy', 'machine', 'femnist', 'synthetic', 'insurance'
+    ] else False
 
     if name not in ['femnist', 'synthetic']:
         columns_to_scale = SMOKING_COLUMNS_TO_SCALE[name]
@@ -249,6 +263,7 @@ def plot_metric_from_history(
     save_plot_path: Path,
     suffix: Optional[str] = "",
     metric_type: Optional[str] = "centralized",
+    regression: Optional[bool] = False,
 ) -> None:
     """Plot from Flower server History.
 
@@ -266,7 +281,12 @@ def plot_metric_from_history(
         if metric_type == "centralized"
         else hist.metrics_distributed
     )
-    _, values = zip(*metric_dict["accuracy"])
+
+    if regression:
+        _, values = zip(*metric_dict["loss"])
+        values = tuple(x.item() for x in values)
+    else:
+        _, values = zip(*metric_dict["accuracy"])
 
     if metric_type == "centralized":
         rounds_loss, values_loss = zip(*hist.losses_centralized)
@@ -285,7 +305,11 @@ def plot_metric_from_history(
         axs[1].plot(np.asarray(rounds_loss), np.asarray(values))
 
     axs[0].set_ylabel("Loss")
-    axs[1].set_ylabel("Accuracy")
+
+    if regression:
+        axs[1].set_ylabel("Loss")
+    else:
+        axs[1].set_ylabel("Accuracy")
 
     # plt.title(f"{metric_type.capitalize()} Validation - MNIST")
     plt.xlabel("Rounds")

@@ -28,5 +28,8 @@ SMOKING_COLUMNS_TO_SCALE = {
     ],
     'machine' : [
         'Air temperature [K]','Process temperature [K]','Rotational speed [rpm]','Torque [Nm]'
+    ],
+    'insurance' : [
+        'age', 'bmi'
     ]
 }

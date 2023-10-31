@@ -20,11 +20,14 @@ from src.benchmark.utils import get_dataset
 PROJECT_DIR = Path(__file__).parent.parent.absolute()
 
 class BaseClient(NumPyClient):
-    def __init__(self, cid, model, trainloader, valloader):
+    def __init__(self, cid, model, trainloader, valloader, config):
         self.cid = cid
         self.model = model
         self.trainloader = trainloader
         self.valloader = valloader
+        self.config = config
+
+        self.task = config.task
 
     def get_parameters(self, config):
         return [val.cpu().numpy() for _, val in self.model.state_dict().items()]
@@ -44,9 +47,12 @@ class BaseClient(NumPyClient):
 
     def evaluate(self, parameters, config):
         self.set_parameters(parameters)
-        loss, accuracy = self.model.evaluate(self.valloader)
-        print(f"[Client {self.cid}] evaluate, accuracy: {accuracy}")
-        return float(loss), len(self.valloader), {"accuracy": float(accuracy)}
+        loss, metric = self.model.evaluate(self.valloader)
+        if self.task != 'regression':
+            print(f"[Client {self.cid}] evaluate, accuracy: {metric}")
+            return float(loss), len(self.valloader), {"accuracy": float(metric)}
+        print(f"[Client {self.cid}] evaluate, loss: {loss}")
+        return float(loss), len(self.valloader), {"loss": float(loss)}
 
 
 def get_client_fn_simulation(
@@ -78,6 +84,6 @@ def get_client_fn_simulation(
         # 1. Load data
         train_loader, val_loader = get_dataset(config.dataset, cid=cid)
 
-        return BaseClient(cid, model, train_loader, val_loader)
+        return BaseClient(cid, model, train_loader, val_loader, config)
 
     return client_fn

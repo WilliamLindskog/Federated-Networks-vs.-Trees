@@ -19,15 +19,22 @@ def get_evaluate_fn(cfg: DictConfig, model):
     # read server data from tmp folder
     test_loader = get_server_dataset(cfg)
 
+    task = "regression" if cfg.num_classes == 1 else "classification"
+
     # The `evaluate` function will be called after every round
     def evaluate(
         server_round: int, parameters: NDArrays, config: Dict[str, Scalar]
     ) -> Optional[Tuple[float, Dict[str, Scalar]]]:
         # add parameters to model
         params_dict = zip(model.state_dict().keys(), parameters)
+        task_use = task
         state_dict = OrderedDict({k: torch.Tensor(v) for k, v in params_dict})
         model.load_state_dict(state_dict, strict=True)
-        loss, accuracy = model.evaluate(test_loader)
-        return loss, {"accuracy": accuracy}
+        if task_use == "regression":
+            loss, metric = model.evaluate(test_loader)
+            return loss, {"loss": metric}
+        else:
+            loss, accuracy = model.evaluate(test_loader)
+            return loss, {"accuracy": accuracy}
 
     return evaluate

@@ -155,6 +155,9 @@ def get_dataset(name: str, femnist_cfg: DictConfig = None) -> Tuple[Any, bool]:
                 df.to_csv(synthetic_data_path, index=False)
         csv = True
         data = pd.read_csv(synthetic_data_path)
+    elif name == 'insurance':
+        data = pd.read_csv(FL_BENCH_ROOT / 'data' / 'health_insurance' / 'insurance.csv')
+        csv = True
     else:
         raise NotImplementedError(f'Unknown dataset {name}')
 
@@ -170,7 +173,6 @@ def dataset_main(cfg: DictConfig) -> Optional[DictConfig]:
     # Get dataset
     name = cfg.name.lower()
     data, csv = get_dataset(name) if name != 'femnist' else get_dataset(name, cfg.femnist)
-    # print length of unique values for each column
     
     # Prepare dataset
     data = dataset_prepare(name, data)

@@ -111,6 +111,7 @@ def main(cfg: DictConfig):
         save_path,
         (file_suffix),
         metric_type=cfg.metric_type,
+        regression=True if cfg.task == 'regression' else False,
     )
 
 if __name__ == '__main__':
