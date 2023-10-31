@@ -374,3 +374,18 @@ def save_results_as_pickle(
     # save results to pickle
     with open(str(path), "wb") as handle:
         pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+def empty_dir(path: Path) -> None:
+    """Empty directory.
+    
+    Parameters
+    ----------
+    path : Path
+        Path to directory.
+    """
+    for file in path.iterdir():
+        if file.is_file():
+            file.unlink()
+        else:
+            empty_dir(file)
+            file.rmdir()

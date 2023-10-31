@@ -12,6 +12,7 @@ metric_type: centralized
 dataset:
   federated: ${federated}
   iid: True
+  split_by_classes: True
   server_dataset: True
   server_dataset_frac: 0.1
   name: insurance

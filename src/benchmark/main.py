@@ -36,18 +36,13 @@ def main(cfg: DictConfig):
     # 0. Set model target and complete initial assertions
     cfg = set_model_target(cfg.model.name, cfg)
     cfg = set_dataset_task(cfg.dataset.name, cfg)
-
     initial_assertions(cfg)
 
     # 1. Print config
     print(OmegaConf.to_yaml(cfg))
 
     # 2. Prepare dataset
-    cfg.dataset = dataset_main(cfg.dataset)
-    if cfg.dataset.name == 'synthetic':
-        tmp_data = pd.read_csv(f'./data/leaf/data/synthetic/data/synthetic.csv')
-        cfg.dataset.num_classes = len(tmp_data['y'].unique())
-        cfg.task = 'multiclass'
+    cfg = dataset_main(cfg)
 
     # 3. Prepare model
     model = get_model(cfg.model)

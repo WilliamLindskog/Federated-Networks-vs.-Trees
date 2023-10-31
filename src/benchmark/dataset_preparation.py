@@ -1,9 +1,11 @@
-from typing import List, Tuple, Dict, Union, Any
+import torch
 import pandas as pd
 
-from torch.utils.data import Dataset, DataLoader
-import torch
-from geopy.geocoders import Nominatim
+from torch.utils.data import Dataset
+
+from pathlib import Path
+from typing import List, Tuple, Dict, Union, Any
+from omegaconf import DictConfig
 
 class TabularDataset(Dataset):
     """Tabular dataset."""
@@ -54,7 +56,7 @@ class TabularDataset(Dataset):
         target = torch.tensor(target)
         return data.to(self.device), target.to(self.device)
 
-def dataset_prepare(name: str, dataset: Union[pd.DataFrame, Any]) -> Any:
+def dataset_prepare(name: str, dataset: pd.DataFrame, cfg: DictConfig) -> Any:
     """Prepare dataset.
     
     Parameters
@@ -71,26 +73,18 @@ def dataset_prepare(name: str, dataset: Union[pd.DataFrame, Any]) -> Any:
     """
 
     # Get dataset path
-    if name == 'smoking':
-        dataset = smoking_processing(dataset)
-    elif name == 'heart':
-        dataset = heart_preprocessing(dataset)
-    elif name == 'lumpy':
-        dataset = lumpy_preprocessing(dataset)
-    elif name == 'machine':
-        dataset = machine_preprocessing(dataset)
+    if name in ['smoking', 'heart', 'lumpy', 'machine', 'insurance']:
+        dataset = standard_preprocessing(dataset)
     elif name == 'femnist':
-        dataset = femnist_preprocessing(dataset)
+        dataset = femnist_preprocessing(dataset, cfg)
     elif name == 'synthetic':
         pass
-    elif name == 'insurance':
-        dataset = insurance_preprocessing(dataset)
     else:
         raise NotImplementedError(f'Unknown dataset {name}')
     
     return dataset
 
-def insurance_preprocessing(dataset: pd.DataFrame) -> pd.DataFrame:
+def standard_preprocessing(dataset: pd.DataFrame) -> pd.DataFrame:
     """Processing insurance dataset."""
     # Encode categorical features
     for col in dataset.columns:
@@ -102,7 +96,7 @@ def insurance_preprocessing(dataset: pd.DataFrame) -> pd.DataFrame:
             
     return dataset
 
-def femnist_preprocessing(dataset: pd.DataFrame) -> None:
+def femnist_preprocessing(dataset: pd.DataFrame, cfg: DictConfig) -> None:
     print("FEMNIST preprocessing")
     # remove all columns where all values are the same
     print(dataset.shape)
@@ -112,68 +106,17 @@ def femnist_preprocessing(dataset: pd.DataFrame) -> None:
     dataset = dataset.loc[:, (dataset == dataset.iloc[0]).sum() < 0.99*len(dataset)]
     print(dataset.shape)
 
-    # Encode categorical features
-    for col in dataset.columns:
-        if dataset[col].dtype == 'object':
-            print("Encoding categorical feature: ", col)
-            dataset[col] = dataset[col].astype('category').cat.codes
-            # Set to int64
-            dataset[col] = dataset[col].astype('int64')
-
-    return dataset
-
-def machine_preprocessing(dataset: pd.DataFrame) -> None:
-    """Processing machine dataset."""
+    if cfg.dataset.iid:
+        dataset.drop(columns=['user'], inplace=True)
 
     # Encode categorical features
-    for col in dataset.columns:
-        if dataset[col].dtype == 'object':
-            print("Encoding categorical feature: ", col)
-            dataset[col] = dataset[col].astype('category').cat.codes
-            # Set to int64
-            dataset[col] = dataset[col].astype('int64')
-    
-    return dataset
+    return standard_preprocessing(dataset)
 
-def lumpy_preprocessing(dataset: pd.DataFrame) -> None:
-    """ Lumpy skin data preprocessing. """
-
-    # Encode categorical features
-    for col in dataset.columns:
-        if dataset[col].dtype == 'object':
-            print("Encoding categorical feature: ", col)
-            dataset[col] = dataset[col].astype('category').cat.codes
-            # Set to int64
-            dataset[col] = dataset[col].astype('int64')
-
-    return dataset
-
-def heart_preprocessing(dataset: pd.DataFrame) -> None:
-    """Processing heart disease dataset."""
-
-    # Encode categorical features
-    for col in dataset.columns:
-        if dataset[col].dtype == 'object':
-            print("Encoding categorical feature: ", col)
-            dataset[col] = dataset[col].astype('category').cat.codes
-            # Set to int64
-            dataset[col] = dataset[col].astype('int64')
-
-    return dataset
-
-def smoking_processing(dataset: pd.DataFrame) -> None:
+def smoking_processing(dataset: pd.DataFrame, cfg: DictConfig) -> None:
     """Processing smoking dataset."""
     
     # Drop ID and oral column
     dataset.drop('ID', axis=1, inplace=True)
     dataset.drop('oral', axis=1, inplace=True)
 
-    # Encode categorical features
-    for col in dataset.columns:
-        if dataset[col].dtype == 'object':
-            print("Encoding categorical feature: ", col)
-            dataset[col] = dataset[col].astype('category').cat.codes
-            # Set to int64
-            dataset[col] = dataset[col].astype('int64')
-    
-    return dataset
+    return standard_preprocessing(dataset)
